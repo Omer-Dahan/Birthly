@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Force \"c:\\\\Users\\\\omer\\\\Desktop\\\\programming\\\\Birthly\" | Select-Object Name,@{n='KB';e={[math]::Round\\($_.Length/1KB,1\\)}})"
+    ]
+  }
+}

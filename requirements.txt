@@ -1,0 +1,10 @@
+aiogram>=3.15
+SQLAlchemy[asyncio]>=2.0
+aiosqlite>=0.20
+alembic>=1.13
+APScheduler>=3.10,<4
+pyluach>=2.2
+pydantic-settings>=2.5
+openpyxl>=3.1
+structlog>=24.0
+python-dateutil>=2.9

@@ -1,0 +1,35 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/*" = ["E501"]
+"app/db/seed_templates.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_configs = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = "app.core.*"
+strict = true
+
+[[tool.mypy.overrides]]
+module = "app.services.*"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
