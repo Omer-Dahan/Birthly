@@ -3,6 +3,7 @@
 
 # runtime data — DB, backups, logs
 data/
+tests/
 
 # python
 __pycache__/
