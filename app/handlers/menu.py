@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from aiogram import F, Router
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.callbacks.factories import MenuCallback, NavCallback
 from app.core.formatting import format_countdown, format_name
@@ -42,9 +44,7 @@ async def render_home(session: Any, user: User) -> tuple[str, InlineKeyboardMark
 
 
 @router.callback_query(MenuCallback.filter(F.action == "home"))
-async def cb_menu_home(
-    callback: CallbackQuery, session: Any, user: User
-) -> None:
+async def cb_menu_home(callback: CallbackQuery, session: Any, user: User) -> None:
     text, keyboard = await render_home(session, user)
     await edit_or_ignore(callback, text, keyboard)
     await callback.answer()
@@ -55,3 +55,39 @@ async def cb_nav_home(callback: CallbackQuery, session: Any, user: User) -> None
     text, keyboard = await render_home(session, user)
     await edit_or_ignore(callback, text, keyboard)
     await callback.answer()
+
+
+@router.callback_query(NavCallback.filter(F.action == "cancel"))
+async def cb_nav_cancel(
+    callback: CallbackQuery, session: Any, user: User, state: FSMContext
+) -> None:
+    """Clears any in-progress form and returns to the home screen (SPEC.md chapter 14)."""
+    await state.clear()
+    text, keyboard = await render_home(session, user)
+    await edit_or_ignore(callback, text, keyboard)
+    await callback.answer()
+
+
+def _help_text_and_keyboard(lang: str) -> tuple[str, InlineKeyboardMarkup]:
+    text = f"{t('help.title', lang)}\n\n{t('help.body', lang)}"
+    add_btn = InlineKeyboardButton(
+        text=t("help.add_first", lang), callback_data=MenuCallback(action="add").pack()
+    )
+    home_btn = InlineKeyboardButton(
+        text=t("common.home", lang), callback_data=NavCallback(action="home").pack()
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[add_btn, home_btn]])
+    return text, keyboard
+
+
+@router.callback_query(MenuCallback.filter(F.action == "help"))
+async def cb_menu_help(callback: CallbackQuery, user: User) -> None:
+    text, keyboard = _help_text_and_keyboard(user.language)
+    await edit_or_ignore(callback, text, keyboard)
+    await callback.answer()
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message, user: User) -> None:
+    text, keyboard = _help_text_and_keyboard(user.language)
+    await message.answer(text, reply_markup=keyboard)

@@ -33,6 +33,11 @@ class ReminderRuleRepository(BaseRepository[ReminderRule]):
         await self.session.delete(rule)
         await self.session.commit()
 
+    async def update(self, rule: ReminderRule) -> ReminderRule:
+        await self.session.commit()
+        await self.session.refresh(rule)
+        return rule
+
     async def toggle(self, rule: ReminderRule) -> ReminderRule:
         rule.enabled = not rule.enabled
         await self.session.commit()

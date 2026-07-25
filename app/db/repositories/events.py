@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.db.models import Event
 from app.db.repositories.base import BaseRepository
@@ -18,6 +18,12 @@ class EventRepository(BaseRepository[Event]):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one()
+
+    async def list_not_deleted(self) -> list[Event]:
+        """All events that are NOT in the trash (used for export)."""
+        stmt = self._base_query().where(Event.deleted_at.is_(None)).order_by(Event.id)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
 
     async def list_active(self) -> list[Event]:
         stmt = self._base_query().where(
@@ -77,6 +83,38 @@ class EventRepository(BaseRepository[Event]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all()), total
 
+    async def search(
+        self, *, text: str | None, category: str | None, month: int | None
+    ) -> list[Event]:
+        """S10 free-text search: LIKE on name/nickname/phone/notes/relation,
+        or filter by resolved category/month (SPEC.md 15/S10).
+
+        ``text`` and (``category`` or ``month``) are mutually exclusive per
+        the caller's own resolution — this just applies whichever is given.
+        """
+        stmt = self._base_query().where(Event.deleted_at.is_(None))
+
+        if category is not None:
+            stmt = stmt.where(Event.category == category)
+        elif month is not None:
+            stmt = stmt.where(Event.month == month)
+        elif text is not None:
+            like = f"%{text}%"
+            stmt = stmt.where(
+                or_(
+                    Event.first_name.ilike(like),
+                    Event.last_name.ilike(like),
+                    Event.nickname.ilike(like),
+                    Event.phone.ilike(like),
+                    Event.notes.ilike(like),
+                    Event.relation.ilike(like),
+                )
+            )
+
+        stmt = stmt.order_by(Event.next_occurrence.is_(None), Event.next_occurrence)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create(self, event: Event) -> Event:
         self.session.add(event)
         await self.session.commit()
@@ -97,9 +135,7 @@ class EventRepository(BaseRepository[Event]):
         await self.session.commit()
 
     async def purge_deleted_before(self, cutoff: datetime) -> int:
-        stmt = self._base_query().where(
-            Event.deleted_at.is_not(None), Event.deleted_at < cutoff
-        )
+        stmt = self._base_query().where(Event.deleted_at.is_not(None), Event.deleted_at < cutoff)
         result = await self.session.execute(stmt)
         events = list(result.scalars().all())
         for event in events:

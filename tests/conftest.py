@@ -37,3 +37,25 @@ def frozen_time():
     from freezegun import freeze_time
 
     return freeze_time
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_send_limiter():
+    """Full tokens + a fresh lock before every test.
+
+    app.scheduler.notify._send_limiter is a module-level singleton shared
+    for the whole process lifetime — correct in production (one real 20/sec
+    cap across all sends), but across a pytest session it means later tests
+    inherit whatever token deficit earlier tests left behind, and its
+    asyncio.Lock is bound to whichever event loop first acquired it. Without
+    this reset, unrelated tests can block for real wall-clock seconds on
+    genuine rate-limit sleeps or a lock tied to an already-closed loop.
+    """
+    import time
+
+    from app.scheduler.notify import _send_limiter
+
+    _send_limiter._tokens = float(_send_limiter._capacity)
+    _send_limiter._last_refill = time.monotonic()
+    _send_limiter._lock = None
+    yield

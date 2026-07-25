@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +8,7 @@ from app.config import settings
 from app.core.dates import next_occurrence
 from app.db.models import Event, User
 from app.db.repositories.events import EventRepository
+from app.services.clock import user_today
 from app.services.exceptions import LimitError, NotFoundError
 
 
@@ -103,17 +102,12 @@ async def toggle_mute(session: AsyncSession, user: User, event_id: int) -> Event
 
 
 def _recompute_occurrence(event: Event, user: User) -> None:
-    today = _user_today(user)
     event.next_occurrence = next_occurrence(
         event.calendar_type,
         event.year,
         event.month,
         event.day,
-        today,
+        user_today(user),
         adar_policy=user.adar_policy,
         feb29_policy=user.feb29_policy,
     )
-
-
-def _user_today(user: User) -> date:
-    return datetime.now(ZoneInfo(user.timezone)).date()

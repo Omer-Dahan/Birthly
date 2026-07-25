@@ -16,7 +16,12 @@ class AsyncRateLimiter:
         self._capacity = capacity if capacity is not None else max(1, int(rate))
         self._tokens = float(self._capacity)
         self._last_refill = time.monotonic()
-        self._lock = asyncio.Lock()
+        # Created lazily on first acquire(), not here: an asyncio.Lock binds
+        # to whatever event loop is running when it's constructed, but this
+        # limiter is a module-level singleton that must work across the
+        # multiple event loops a long-lived process (or per-test loops in
+        # pytest-asyncio) can create over its lifetime.
+        self._lock: asyncio.Lock | None = None
 
     def _refill(self) -> None:
         now = time.monotonic()
@@ -26,6 +31,8 @@ class AsyncRateLimiter:
 
     async def acquire(self) -> None:
         """Block until a token is available, then consume it."""
+        if self._lock is None:
+            self._lock = asyncio.Lock()
         while True:
             async with self._lock:
                 self._refill()

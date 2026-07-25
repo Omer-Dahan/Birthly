@@ -1,0 +1,9 @@
+/opt/birthly/data/logs/*.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

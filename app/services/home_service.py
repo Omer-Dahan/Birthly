@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dates import days_until
 from app.db.models import Event, User
 from app.db.repositories.events import EventRepository
+from app.services.clock import user_today
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ class HomeSummary:
 async def get_home_summary(session: AsyncSession, user: User) -> HomeSummary:
     """Live counts for the S1 home screen banner: today, this week, and the nearest event."""
     repo = EventRepository(session, user.id)
-    today = datetime.now(ZoneInfo(user.timezone)).date()
+    today = user_today(user)
     week_end = today + timedelta(days=7)
 
     upcoming = await repo.upcoming_between(today, week_end)

@@ -34,6 +34,7 @@ class Search(StatesGroup):
 class SettingsFlow(StatesGroup):
     custom_time = State()
     custom_timezone = State()
+    wipe_confirm = State()
 
 
 class TemplateFlow(StatesGroup):

@@ -1,6 +1,9 @@
 # secrets
 .env
 
+# project documentation (not for version control)
+SOFTWARE_OVERVIEW.md
+
 # runtime data — DB, backups, logs
 data/
 tests/

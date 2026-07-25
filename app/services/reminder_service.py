@@ -49,3 +49,12 @@ def describe_default_reminder(user: User) -> str:
     """
     label = offset_label(1, user.language)
     return _describe(label, user.default_notify_time, user.language)
+
+
+def summarize_rules(rules: list[ReminderRule], lang: str) -> str:
+    """Short joined labels for a card, e.g. 'יום לפני · ביום עצמו'. Empty if no rules."""
+    enabled = [r for r in rules if r.enabled]
+    labels = [
+        offset_label(r.offset_days, lang) for r in enabled if r.offset_days is not None
+    ]
+    return " · ".join(labels)

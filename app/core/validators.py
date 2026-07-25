@@ -79,6 +79,18 @@ _ENGLISH_MONTH_ALIASES = {
 
 _MONTH_DAYS = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
+
+def month_number_from_name(text: str) -> int | None:
+    """Resolve a Hebrew or English month name/abbreviation to 1-12, or None."""
+    cleaned = text.strip().lower()
+    if not cleaned:
+        return None
+    month = _HEBREW_MONTH_ALIASES.get(text.strip())
+    if month is not None:
+        return month
+    return _ENGLISH_MONTH_ALIASES.get(cleaned)
+
+
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
@@ -232,6 +244,7 @@ __all__ = [
     "ParsedDate",
     "ValidationError",
     "contains_only_symbols",
+    "month_number_from_name",
     "parse_gregorian",
     "parse_hebrew_year_input",
     "validate_name",

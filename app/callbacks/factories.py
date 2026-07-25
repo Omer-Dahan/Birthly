@@ -59,9 +59,10 @@ class StatsCallback(CallbackData, prefix="st"):
 
 
 class TemplateCallback(CallbackData, prefix="tpl"):
-    action: str  # list | v | new | del | use
+    action: str  # style | pick | ai | list | use | new | new_tone | del
     value: str | None = None
     event_id: int | None = None
+    exclude_id: int | None = None  # previously shown template id, so "another" doesn't repeat it
 
 
 class BackupCallback(CallbackData, prefix="bk"):
