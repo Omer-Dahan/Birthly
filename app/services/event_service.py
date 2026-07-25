@@ -20,6 +20,7 @@ class NewEventInput:
     day: int
     year: int | None
     calendar_type: str = "gregorian"
+    gender: str | None = None
 
 
 async def create_minimal_event(
@@ -43,6 +44,7 @@ async def create_minimal_event(
         day=data.day,
         year=data.year,
         calendar_type=data.calendar_type,
+        gender=data.gender,
     )
     _recompute_occurrence(event, user)
     return await repo.create(event)

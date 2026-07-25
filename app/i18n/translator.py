@@ -34,11 +34,23 @@ def t(key: str, lang: str = _FALLBACK_LANGUAGE, **kwargs: object) -> str:
         load_locales()
 
     catalog = _catalogs.get(lang) or _catalogs.get(_FALLBACK_LANGUAGE) or {}
-    template = catalog.get(key)
+    
+    # Check for gendered key first if gender is provided
+    gender = kwargs.get("gender")
+    template = None
+    if gender in ("m", "f"):
+        gendered_key = f"{key}_{gender}"
+        template = catalog.get(gendered_key)
+        
+    if template is None:
+        template = catalog.get(key)
 
     if template is None:
         fallback_catalog = _catalogs.get(_FALLBACK_LANGUAGE) or {}
-        template = fallback_catalog.get(key)
+        if gender in ("m", "f"):
+            template = fallback_catalog.get(f"{key}_{gender}")
+        if template is None:
+            template = fallback_catalog.get(key)
 
     if template is None:
         logger.warning("missing_i18n_key", extra={"key": key, "lang": lang})

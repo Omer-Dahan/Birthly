@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
+from pathlib import Path
+
+if __name__ == "__main__" and __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    __package__ = "app"
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties

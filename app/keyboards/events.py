@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    SwitchInlineQueryChosenChat,
+)
 
 from app.callbacks.factories import (
     EventCallback,
@@ -114,13 +118,25 @@ def saved_keyboard(lang: str, event_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[more, change_reminder], [add_another, home]])
 
 
-def card_keyboard(lang: str, event_id: int, is_active: bool) -> InlineKeyboardMarkup:
+def card_keyboard(
+    lang: str, event_id: int, is_active: bool, share_text: str
+) -> InlineKeyboardMarkup:
     def btn(action: str, key: str) -> InlineKeyboardButton:
         return InlineKeyboardButton(
             text=t(key, lang), callback_data=EventCallback(action=action, event_id=event_id).pack()
         )
 
     mute_key = "card.unmute" if not is_active else "card.mute"
+    share_btn = InlineKeyboardButton(
+        text=t("card.share", lang),
+        switch_inline_query_chosen_chat=SwitchInlineQueryChosenChat(
+            query=share_text,
+            allow_user_chats=True,
+            allow_bot_chats=False,
+            allow_group_chats=True,
+            allow_channel_chats=False,
+        ),
+    )
     back = InlineKeyboardButton(
         text=t("card.back_to_list", lang), callback_data=MenuCallback(action="list").pack()
     )
@@ -131,7 +147,7 @@ def card_keyboard(lang: str, event_id: int, is_active: bool) -> InlineKeyboardMa
         inline_keyboard=[
             [btn("e", "card.edit"), btn("gr", "card.greeting")],
             [btn("rem", "card.reminders_btn"), btn("mute", mute_key)],
-            [btn("sh", "card.share"), btn("d", "card.delete")],
+            [share_btn, btn("d", "card.delete")],
             [back, home],
         ]
     )
@@ -295,3 +311,37 @@ def list_keyboard(
     controls_row = [sort_btn, filter_btn, search_btn]
     rows = [*event_rows, page_row(page, total_pages), controls_row, [home_btn]]
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+_SORT_OPTIONS = ("upcoming", "name", "age", "created")
+_FILTER_OPTIONS = ("all", "muted")
+
+
+def sort_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    buttons = [
+        InlineKeyboardButton(
+            text=t(f"list.sort_{opt}", lang),
+            callback_data=ListCallback(action="fset", value=f"sort:{opt}").pack(),
+        )
+        for opt in _SORT_OPTIONS
+    ]
+    rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
+    back = InlineKeyboardButton(
+        text=t("common.back", lang), callback_data=MenuCallback(action="list").pack()
+    )
+    rows.append([back])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def filter_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    buttons = [
+        InlineKeyboardButton(
+            text=t(f"list.filter_option_{opt}", lang),
+            callback_data=ListCallback(action="fset", value=f"filt:{opt}").pack(),
+        )
+        for opt in _FILTER_OPTIONS
+    ]
+    back = InlineKeyboardButton(
+        text=t("common.back", lang), callback_data=MenuCallback(action="list").pack()
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[buttons, [back]])

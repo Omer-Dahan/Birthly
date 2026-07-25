@@ -37,12 +37,12 @@ def render_card_text(user: User, event: Event, rules: list[ReminderRule]) -> str
         lines.append(f"📅 {format_date(event.next_occurrence, user.date_format)}")
 
     countdown = format_countdown(days_until(event.next_occurrence, today))
-    lines.append(t("card.days_until", lang, countdown=countdown))
+    lines.append(t("card.days_until", lang, countdown=countdown, gender=event.gender))
 
     age = age_at(event.calendar_type, event.year, event.month, event.day, event.next_occurrence)
     if age is not None:
         age_key = "card.age_memorial" if event.event_type == "memorial" else "card.age"
-        lines.append(t(age_key, lang, age=age))
+        lines.append(t(age_key, lang, age=age, gender=event.gender))
 
     tag_parts = []
     if event.category and event.category != Category.OTHER.value:

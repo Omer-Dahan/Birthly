@@ -58,12 +58,12 @@ def _render_home(stats: UserStats, user: User) -> str:
     if stats.youngest is not None:
         event, age = stats.youngest
         name = esc(format_name(event.first_name, event.last_name))
-        lines.append(t("stats.youngest", lang, name=name, age=age))
+        lines.append(t("stats.youngest", lang, name=name, age=age, gender=event.gender))
 
     if stats.oldest is not None:
         event, age = stats.oldest
         name = esc(format_name(event.first_name, event.last_name))
-        lines.append(t("stats.oldest", lang, name=name, age=age))
+        lines.append(t("stats.oldest", lang, name=name, age=age, gender=event.gender))
 
     if stats.avg_age is not None:
         lines.append(t("stats.avg_age", lang, age=round(stats.avg_age)))

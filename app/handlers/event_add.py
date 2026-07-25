@@ -18,6 +18,7 @@ from app.core.validators import (
     parse_hebrew_year_input,
     validate_name,
 )
+from app.core.gender_detector import detect_gender
 from app.db.models import Event, User
 from app.i18n.translator import t
 from app.keyboards.events import (
@@ -59,9 +60,11 @@ async def msg_add_name(message: Message, user: User, state: FSMContext) -> None:
     first_name, last_name = split_name(cleaned)
     await state.update_data(first_name=first_name, last_name=last_name)
     await state.set_state(AddEvent.date)
+    
+    gender = detect_gender(first_name)
 
     text = (
-        f"{t('add.date.title', user.language, name=esc(first_name))}\n\n"
+        f"{t('add.date.title', user.language, name=esc(first_name), gender=gender)}\n\n"
         f"{t('add.date.hint', user.language)}"
     )
     await message.answer(text, reply_markup=date_step_keyboard(user.language))
@@ -207,6 +210,10 @@ async def _finalize_event(
     """Creates the event and clears FSM state. Returns None if the user's
     event limit was reached (caller renders the limit-reached message)."""
     data = await state.get_data()
+    
+    # Auto-detect gender
+    gender = detect_gender(data["first_name"])
+    
     try:
         event = await create_minimal_event(
             session,
@@ -218,6 +225,7 @@ async def _finalize_event(
                 day=day,
                 year=year,
                 calendar_type=calendar_type,
+                gender=gender,
             ),
         )
     except LimitError:
@@ -231,7 +239,7 @@ async def _finalize_event(
 
 def _render_saved_text(user: User, event: Event) -> str:
     lang = user.language
-    lines = [t("add.saved.title", lang), ""]
+    lines = [t("add.saved.title", lang, gender=event.gender), ""]
 
     name = esc(event.first_name)
     if event.last_name:
@@ -252,13 +260,13 @@ def _render_saved_text(user: User, event: Event) -> str:
         lines.append(f"📅 {format_date(event.next_occurrence, user.date_format)}")
 
     countdown = format_countdown(days_until(event.next_occurrence, user_today(user)))
-    lines.append(t("card.days_until", lang, countdown=countdown))
+    lines.append(t("card.days_until", lang, countdown=countdown, gender=event.gender))
 
     age = age_at(event.calendar_type, event.year, event.month, event.day, event.next_occurrence)
     if age is not None:
-        lines.append(t("card.age", lang, age=age))
+        lines.append(t("card.age", lang, age=age, gender=event.gender))
 
     lines.append("")
-    lines.append(t("add.saved.reminder", lang, reminder=describe_default_reminder(user)))
+    lines.append(t("add.saved.reminder", lang, reminder=describe_default_reminder(user), gender=event.gender))
 
     return "\n".join(lines)

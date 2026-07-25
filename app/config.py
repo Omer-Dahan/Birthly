@@ -4,7 +4,7 @@ import sys
 from typing import Annotated
 
 from pydantic import BeforeValidator, Field
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _parse_admin_ids(v: object) -> list[int]:
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Telegram
     bot_token: str
     bot_username: str
-    admin_ids: Annotated[list[int], NoDecode, BeforeValidator(_parse_admin_ids)] = Field(
+    admin_ids: Annotated[list[int], BeforeValidator(_parse_admin_ids)] = Field(
         default_factory=list
     )
 

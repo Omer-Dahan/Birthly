@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.callbacks.factories import NavCallback, SettingsCallback
+from app.callbacks.factories import BackupCallback, NavCallback, SettingsCallback
 from app.constants import DateFormat, Language, TimeFormat
 from app.db.models import User
 from app.i18n.translator import t
@@ -49,7 +49,7 @@ def settings_keyboard(user: User) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text=t("settings.backup_menu", lang),
-                    callback_data=SettingsCallback(action="backup").pack(),
+                    callback_data=BackupCallback(action="home").pack(),
                 )
             ],
             [

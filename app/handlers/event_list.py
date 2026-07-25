@@ -13,8 +13,9 @@ from app.core.text import esc
 from app.db.models import Event, User
 from app.db.repositories.events import EventRepository
 from app.i18n.translator import t
-from app.keyboards.events import list_keyboard
+from app.keyboards.events import filter_menu_keyboard, list_keyboard, sort_menu_keyboard
 from app.services.clock import user_today
+from app.services.settings_service import update_setting
 from app.utils.telegram import edit_or_ignore
 
 router = Router(name="event_list")
@@ -36,8 +37,9 @@ def _row_label(user: User, event: Event) -> str:
 async def _render_list(session: Any, user: User, *, page: int) -> tuple[str, Any]:
     repo = EventRepository(session, user.id)
     sort = user.list_sort
+    view = user.list_filter or "upcoming"
     events, total = await repo.list_page(
-        sort=sort, page=page, page_size=settings.page_size, view="upcoming"
+        sort=sort, page=page, page_size=settings.page_size, view=view
     )
 
     lang = user.language
@@ -46,7 +48,8 @@ async def _render_list(session: Any, user: User, *, page: int) -> tuple[str, Any
     else:
         header = t("list.title", lang, count=total)
         sort_line = t(f"list.sort_{sort}", lang)
-        filter_line = t("list.filter_all", lang)
+        filter_key = "list.filter_muted" if view == "muted" else "list.filter_all"
+        filter_line = t(filter_key, lang)
         text = f"{header}\n{sort_line}  ·  {filter_line}"
 
     row_labels = [(e.id, esc(_row_label(user, e))) for e in events]
@@ -70,3 +73,35 @@ async def cb_list_page(
     text, keyboard = await _render_list(session, user, page=page)
     await edit_or_ignore(callback, text, keyboard)
     await callback.answer()
+
+
+@router.callback_query(ListCallback.filter(F.action == "sort"))
+async def cb_sort_menu(callback: CallbackQuery, user: User) -> None:
+    await edit_or_ignore(callback, t("list.sort_menu_title", user.language), sort_menu_keyboard(user.language))
+    await callback.answer()
+
+
+@router.callback_query(ListCallback.filter(F.action == "filt"))
+async def cb_filter_menu(callback: CallbackQuery, user: User) -> None:
+    await edit_or_ignore(
+        callback, t("list.filter_menu_title", user.language), filter_menu_keyboard(user.language)
+    )
+    await callback.answer()
+
+
+@router.callback_query(ListCallback.filter(F.action == "fset"))
+async def cb_list_set(
+    callback: CallbackQuery, callback_data: ListCallback, session: Any, user: User
+) -> None:
+    kind, _, value = callback_data.value.partition(":")
+    if kind == "sort" and value in ("upcoming", "name", "age", "created"):
+        user = await update_setting(session, user, list_sort=value)
+    elif kind == "filt" and value in ("all", "muted"):
+        user = await update_setting(session, user, list_filter=None if value == "all" else value)
+    else:
+        await callback.answer()
+        return
+
+    text, keyboard = await _render_list(session, user, page=0)
+    await edit_or_ignore(callback, text, keyboard)
+    await callback.answer(t("common.saved", user.language))
