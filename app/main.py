@@ -18,13 +18,17 @@ from app.config import settings
 from app.db.session import get_sessionmaker
 from app.handlers import register_all_routers
 from app.i18n.translator import load_locales
+from app.middlewares.callback_debounce import CallbackDebounceMiddleware
 from app.middlewares.db import DbSessionMiddleware
 from app.middlewares.i18n import I18nMiddleware
 from app.middlewares.logging import LoggingMiddleware
 from app.middlewares.throttling import ThrottlingMiddleware
 from app.middlewares.user import UserMiddleware
 from app.scheduler.scheduler import build_scheduler
+from app.utils.fsm_storage import IdleEvictingMemoryStorage
 from app.utils.logger import setup_logging
+
+_FSM_MAX_IDLE_SECONDS = 6 * 3600  # abandon in-progress flows/state after 6h of inactivity
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +40,9 @@ def _register_middlewares(dp: Dispatcher) -> None:
     dp.update.outer_middleware(UserMiddleware())
     dp.update.outer_middleware(ThrottlingMiddleware())
     dp.update.outer_middleware(I18nMiddleware())
+    # Scoped to callback_query only, runs after the update-level chain above:
+    # a tight per-tap debounce on top of the general per-minute throttle.
+    dp.callback_query.outer_middleware(CallbackDebounceMiddleware())
 
 
 async def _sync_admins(session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -65,7 +72,7 @@ async def main() -> None:
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    dp = Dispatcher()
+    dp = Dispatcher(storage=IdleEvictingMemoryStorage(max_age_seconds=_FSM_MAX_IDLE_SECONDS))
     _register_middlewares(dp)
     register_all_routers(dp)
 

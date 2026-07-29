@@ -47,17 +47,35 @@ class AsyncRateLimiter:
 class PerUserTokenBucket:
     """Per-key token bucket for chat-level rate limiting (e.g. per Telegram user_id).
 
-    Buckets are created lazily and never explicitly expired; at bot scale
-    (SPEC.md targets ~5,000 users) this is a bounded, small amount of state.
+    Buckets are created lazily. At bot scale (SPEC.md targets ~5,000 users)
+    that alone is a bounded, small amount of state, but a burst of distinct
+    user_ids (spam, scanning) could otherwise grow this dict without limit —
+    so idle buckets (untouched for over an hour) are swept out periodically.
     """
+
+    _IDLE_EVICT_SECONDS = 3600
+    _SWEEP_EVERY = 500
 
     def __init__(self, rate_per_minute: int) -> None:
         self._rate_per_minute = rate_per_minute
         self._buckets: dict[int, tuple[float, float]] = {}
+        self._calls_since_sweep = 0
+
+    def _evict_idle(self, now: float) -> None:
+        cutoff = now - self._IDLE_EVICT_SECONDS
+        idle_keys = [key for key, (_, last_refill) in self._buckets.items() if last_refill < cutoff]
+        for key in idle_keys:
+            del self._buckets[key]
 
     def allow(self, key: int) -> bool:
         """True if the action for ``key`` is allowed right now (and consumes a token)."""
         now = time.monotonic()
+
+        self._calls_since_sweep += 1
+        if self._calls_since_sweep >= self._SWEEP_EVERY:
+            self._calls_since_sweep = 0
+            self._evict_idle(now)
+
         tokens, last_refill = self._buckets.get(key, (float(self._rate_per_minute), now))
 
         elapsed = now - last_refill
@@ -73,4 +91,44 @@ class PerUserTokenBucket:
         return False
 
 
-__all__ = ["AsyncRateLimiter", "PerUserTokenBucket"]
+class Debouncer:
+    """Per-key minimum-interval gate — blocks a second call within ``interval_seconds``.
+
+    Unlike a token bucket (which allows bursts up to its capacity), this never
+    allows two calls closer together than ``interval_seconds``. That's exactly
+    what's needed to stop accidental double-taps on save/confirm/toggle
+    buttons, independent of the broader per-minute rate limits.
+    """
+
+    _IDLE_EVICT_SECONDS = 3600
+    _SWEEP_EVERY = 500
+
+    def __init__(self, interval_seconds: float) -> None:
+        self._interval_seconds = interval_seconds
+        self._last_call: dict[int, float] = {}
+        self._calls_since_sweep = 0
+
+    def _evict_idle(self, now: float) -> None:
+        cutoff = now - self._IDLE_EVICT_SECONDS
+        idle_keys = [key for key, last in self._last_call.items() if last < cutoff]
+        for key in idle_keys:
+            del self._last_call[key]
+
+    def allow(self, key: int) -> bool:
+        """True if the action for ``key`` is allowed right now (and records it)."""
+        now = time.monotonic()
+
+        self._calls_since_sweep += 1
+        if self._calls_since_sweep >= self._SWEEP_EVERY:
+            self._calls_since_sweep = 0
+            self._evict_idle(now)
+
+        last = self._last_call.get(key)
+        if last is not None and now - last < self._interval_seconds:
+            return False
+
+        self._last_call[key] = now
+        return True
+
+
+__all__ = ["AsyncRateLimiter", "Debouncer", "PerUserTokenBucket"]

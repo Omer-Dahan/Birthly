@@ -44,10 +44,19 @@ class Settings(BaseSettings):
 
     # Limits
     max_events_per_user: int = 1000
-    rate_limit_messages: int = 20
-    rate_limit_callbacks: int = 40
+    rate_limit_messages: int = 12
+    rate_limit_callbacks: int = 25
     broadcast_rate_per_sec: int = 20
     page_size: int = 8
+
+    # Anti-spam: stricter limits for accounts still within their grace period
+    new_account_grace_hours: float = 1.0
+    new_account_rate_limit_messages: int = 6
+    new_account_rate_limit_callbacks: int = 12
+
+    # Anti-spam: minimum gap between two button taps from the same user, blocks
+    # accidental/rapid double-submits on save/confirm/toggle actions
+    callback_debounce_ms: int = 400
 
     # Backup
     auto_backup_enabled: bool = True
